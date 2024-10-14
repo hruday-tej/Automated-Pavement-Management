@@ -1,0 +1,6 @@
+train: ../../data/processed/train
+val: ../../data/processed/val
+
+nc: 4
+
+names: ['alligator', 'transverse', 'longitudinal', 'block']
