@@ -1112,19 +1112,51 @@ class Classify(nn.Module):
 
     
 class SwinTransformerBlock(nn.Module):
-    def __init__(self, embed_dim=128, num_heads=4, window_size=7, model_name='swin_base_patch4_window7_224', pretrained=True):
+    def __init__(self, c1, c2, embed_dim=128, num_heads=4, window_size=7, model_name='swin_base_patch4_window7_224', pretrained=True):
         super(SwinTransformerBlock, self).__init__()
-        # Create a Swin Transformer model using timm with custom parameters
+        self.c2 = c2  # Store the output channels
+        num_heads_list = [num_heads * (2 ** i) for i in range(4)]  # [4, 8, 16, 32] for base model
+        
+        # Create the Swin Transformer model
         self.model = timm.create_model(
             model_name,
             pretrained=pretrained,
             features_only=True,
             embed_dim=embed_dim,
-            num_heads=num_heads,
-            window_size=window_size
+            depths=[2, 2, 18, 2],  # default depths for swin_base
+            num_heads=num_heads_list,
+            window_size=window_size,
+            out_indices=(3,)  # Only return the last stage output
         )
         
+        # Remove the original patch embedding
+        del self.model.patch_embed
+        
+        # Create a new patch embedding layer that can handle arbitrary input sizes
+        self.patch_embed = nn.Conv2d(c1, embed_dim, kernel_size=4, stride=4)
+        
+        # Add a projection layer to match the desired output channels
+        last_stage_channels = self.model.feature_info.channels()[-1]
+        self.proj = nn.Conv2d(last_stage_channels, c2, kernel_size=1)
+        
     def forward(self, x):
-        # Pass the input through the Swin Transformer model
-        features = self.model(x)
-        return features[-1]  # Use the final feature map
+        # Apply the new patch embedding
+        x = self.patch_embed(x)
+        
+        # Prepare the input for Swin Transformer (B, C, H, W) -> (B, H*W, C)
+        B, C, H, W = x.shape
+        x = x.flatten(2).transpose(1, 2)
+        
+        # Pass through Swin Transformer layers
+        x = self.model.pos_drop(x)
+        x = self.model.layers(x)
+        
+        # Reshape back to (B, C, H, W)
+        x = x.transpose(1, 2).reshape(B, -1, H // 32, W // 32)  # 32 is the total downsampling factor
+        
+        # Apply the projection to get the desired number of output channels
+        x = self.proj(x)
+        return x
+
+    def get_output_channels(self):
+        return self.c2
