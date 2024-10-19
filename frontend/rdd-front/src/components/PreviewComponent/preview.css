@@ -1,0 +1,12 @@
+.preview-card {
+  display: flex;
+  flex-direction: column; /* Ensure vertical stacking */
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.preview-divider {
+  width: 100%; /* Ensure the divider spans the entire width */
+  margin: 20px 0; /* Add vertical margin to give it space */
+}

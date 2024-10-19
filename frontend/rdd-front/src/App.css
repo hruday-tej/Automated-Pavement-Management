@@ -1,0 +1,10 @@
+.App {
+  display: flex;
+  justify-content: center; /* Horizontally center */
+  align-items: center; /* Vertically center */
+  height: 100vh; /* Full viewport height */
+}
+
+.main-grid {
+  margin: auto; /* This can be kept as well, but the flexbox properties do the main work */
+}
